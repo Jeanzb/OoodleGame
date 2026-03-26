@@ -1,0 +1,267 @@
+{
+  "info": {
+    "_postman_id": "8b52cf12-4f41-4b95-b680-c3d5482ea8b9",
+    "name": "Ooodle Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "nombre_jugador",
+      "value": "Jean_Postman"
+    },
+    {
+      "key": "operacion",
+      "value": "1+2*3-4"
+    },
+    {
+      "key": "numero_objetivo",
+      "value": ""
+    },
+    {
+      "key": "estatus_juego",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Health responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Health devuelve status ok', function () {",
+              "  pm.expect(data.status).to.eql('ok');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Iniciar Juego",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Iniciar juego responde 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('numero_objetivo', String(data.juego.numero_Objetivo));",
+              "pm.collectionVariables.set('estatus_juego', String(data.juego.estatus_Juego));",
+              "",
+              "pm.test('Se crea un juego en curso', function () {",
+              "  pm.expect(data.juego.estatus_Juego).to.eql('en_curso');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre_Jugador\": \"{{nombre_jugador}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/juego/iniciar",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "juego",
+            "iniciar"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Estado Juego",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Estado responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('numero_objetivo', String(data.numero_Objetivo));",
+              "pm.collectionVariables.set('estatus_juego', String(data.estatus_Juego));",
+              "",
+              "pm.test('Estado incluye numero objetivo', function () {",
+              "  pm.expect(data.numero_Objetivo).to.be.a('number');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/juego/estado",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "juego",
+            "estado"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Validar Operacion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Validar operacion responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('estatus_juego', String(data.estatus_Juego));",
+              "",
+              "pm.test('La respuesta incluye retroalimentacion', function () {",
+              "  pm.expect(data.retroalimentacion).to.be.an('array');",
+              "  pm.expect(data.retroalimentacion.length).to.eql(4);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operacion\": \"{{operacion}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/juego/validar",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "juego",
+            "validar"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Guardar Score",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Guardar score devuelve 200 o 400', function () {",
+              "  pm.expect([200, 400]).to.include(pm.response.code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/juego/guardar-score",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "juego",
+            "guardar-score"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Ranking",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Ranking responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Ranking devuelve un arreglo', function () {",
+              "  pm.expect(data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/juego/ranking",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "juego",
+            "ranking"
+          ]
+        }
+      }
+    }
+  ]
+}
