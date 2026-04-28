@@ -1,3 +1,3 @@
-export { dificultad_Dificil } from "./dificultad_Dificil";
-export { dificultad_Normal } from "./dificultad_Normal";
-export type { strategy_Dificultad } from "./strategy_Dificultad";
+export { DificultadDificil } from "./dificultad_Dificil";
+export { DificultadNormal } from "./dificultad_Normal";
+export type { StrategyDificultad } from "./strategy_Dificultad";

@@ -24,6 +24,10 @@
     {
       "key": "estatus_juego",
       "value": ""
+    },
+    {
+      "key": "jugador_id",
+      "value": ""
     }
   ],
   "item": [
@@ -259,6 +263,169 @@
             "api",
             "juego",
             "ranking"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Crear Jugador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Crear jugador responde 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('jugador_id', String(data.jugador.idJugador));",
+              "",
+              "pm.test('Jugador tiene id', function () {",
+              "  pm.expect(data.jugador.idJugador).to.be.a('number');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"{{nombre_jugador}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/jugadores",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "jugadores"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Listar Jugadores",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Listar jugadores responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Devuelve un arreglo', function () {",
+              "  pm.expect(data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/jugadores",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "jugadores"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Obtener Jugador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Obtener jugador responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Tiene nombreJugador', function () {",
+              "  pm.expect(data.nombreJugador).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/jugadores/{{jugador_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "jugadores",
+            "{{jugador_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sumar Puntaje Jugador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Sumar puntaje responde 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Puntaje actualizado', function () {",
+              "  pm.expect(data.jugador.puntajeJugador).to.be.a('number');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"puntos\": 100\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/jugadores/{{jugador_id}}/puntaje",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "jugadores",
+            "{{jugador_id}}",
+            "puntaje"
           ]
         }
       }

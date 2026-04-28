@@ -1,53 +1,46 @@
-export class modelo_Jugador {
-  private id_Jugador: number;
-  private nombre_Jugador: string;
-  private puntaje_Jugador: number;
+export class Jugador {
+  private idJugador: number;
+  private nombreJugador: string;
+  private puntajeJugador: number;
 
   constructor(
-    id_Jugador: number = 0,
-    nombre_Jugador: string = "",
-    puntaje_Jugador: number = 0,
+    idJugador: number = 0,
+    nombreJugador: string = "",
+    puntajeJugador: number = 0,
   ) {
-    this.id_Jugador = id_Jugador;
-    this.nombre_Jugador = nombre_Jugador.trim();
-    this.puntaje_Jugador = puntaje_Jugador;
+    this.idJugador = idJugador;
+    this.nombreJugador = nombreJugador.trim();
+    this.puntajeJugador = puntajeJugador;
   }
 
-  public set_nombre_Jugador(jugador_Nombre: string): void {
-    const nombre_Normalizado = jugador_Nombre.trim();
+  public getNombre(): string {
+    return this.nombreJugador;
+  }
 
-    if (!nombre_Normalizado) {
+  public getPuntajeTotal(): number {
+    return this.puntajeJugador;
+  }
+
+  public sumarPuntaje(puntos: number): void {
+    if (!Number.isInteger(puntos) || puntos < 0) {
+      throw new Error("Los puntos deben ser un entero positivo.");
+    }
+    this.puntajeJugador += puntos;
+  }
+
+  public reiniciarPuntaje(): void {
+    this.puntajeJugador = 0;
+  }
+
+  public getIdJugador(): number {
+    return this.idJugador;
+  }
+
+  public setNombreJugador(nombre: string): void {
+    const normalizado = nombre.trim();
+    if (!normalizado) {
       throw new Error("El nombre del jugador no puede estar vacio.");
     }
-
-    this.nombre_Jugador = nombre_Normalizado;
-  }
-
-  public set_puntaje_Jugador(jugador_Puntaje: number): void {
-    if (!Number.isInteger(jugador_Puntaje) || jugador_Puntaje < 0) {
-      throw new Error("El puntaje del jugador debe ser un entero positivo.");
-    }
-
-    this.puntaje_Jugador = jugador_Puntaje;
-  }
-
-  public get_id_Jugador(): number {
-    return this.id_Jugador;
-  }
-
-  public get_nombre_Jugador(): string {
-    return this.nombre_Jugador;
-  }
-
-  public get_puntaje_Jugador(): number {
-    return this.puntaje_Jugador;
-  }
-
-  public get_jugador_Data(): string {
-    return JSON.stringify({
-      id_Jugador: this.id_Jugador,
-      nombre_Jugador: this.nombre_Jugador,
-      puntaje_Jugador: this.puntaje_Jugador,
-    });
+    this.nombreJugador = normalizado;
   }
 }

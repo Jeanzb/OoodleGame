@@ -1,178 +1,45 @@
-import {
-  dificultad_Normal,
-  type strategy_Dificultad,
-} from "./strategy";
+import { Jugador } from "./modelo_Jugador";
+import { StrategyDificultad } from "./strategy/strategy_Dificultad";
 
-type operacion_Extraida = {
-  numeros: number[];
-  resultado: number;
-};
-
-const TOTAL_NUMEROS_JUEGO = 4;
-
-export class modelo_Juego {
-  private Numeros: number[];
-  private numero_Objetivo: number;
-  private intentos_Jugador: number;
-  private intentos_Maximos: number;
+export class Partida {
+  private jugador: Jugador;
+  private strategy: StrategyDificultad;
+  private numerosObjetivo: number[];
+  private intentosMaximos: number;
   private puntaje: number;
-  private estatus_Juego: string;
-  private Strategy: strategy_Dificultad;
+  private estado: string;
+  private intentosJugador: number;
 
-  constructor(Strategy: strategy_Dificultad = new dificultad_Normal()) {
-    this.Strategy = Strategy;
-    this.Numeros = [];
-    this.numero_Objetivo = 0;
-    this.intentos_Jugador = 0;
-    this.intentos_Maximos = this.Strategy.obtener_intentos_maximos();
+  constructor(jugador: Jugador, strategy: StrategyDificultad) {
+    this.jugador = jugador;
+    this.strategy = strategy;
+    this.numerosObjetivo = [];
+    this.intentosMaximos = this.strategy.calcularIntentosMaximos();
     this.puntaje = 0;
-    this.estatus_Juego = "pendiente";
-
-    this.generar_Numeros();
-    this.generar_Resultado();
+    this.estado = "pendiente";
+    this.intentosJugador = 0;
   }
 
-  public generar_Numeros(): number {
-    const rango_Minimo = this.Strategy.obtener_rango_minimo();
-    const rango_Maximo = this.Strategy.obtener_rango_maximo();
-    const disponibles = Array.from(
-      { length: rango_Maximo - rango_Minimo + 1 },
-      (_valor, indice) => indice + rango_Minimo,
-    );
-
-    for (let indice = disponibles.length - 1; indice > 0; indice -= 1) {
-      const indice_Aleatorio = Math.floor(Math.random() * (indice + 1));
-      [disponibles[indice], disponibles[indice_Aleatorio]] = [
-        disponibles[indice_Aleatorio],
-        disponibles[indice],
-      ];
-    }
-
-    this.Numeros = disponibles.slice(0, TOTAL_NUMEROS_JUEGO);
-    this.estatus_Juego = "en_curso";
-
-    return this.Numeros.length;
+  public iniciarJuego(): void {
+    this.intentosJugador = 0;
+    this.puntaje = 0;
+    this.estado = "en_curso";
+    this.generarNumeros();
   }
 
-  public generar_Resultado(): number {
-    if (this.Numeros.length !== TOTAL_NUMEROS_JUEGO) {
-      this.generar_Numeros();
-    }
-
-    const [primer_Numero, segundo_Numero, tercer_Numero, cuarto_Numero] =
-      this.Numeros;
-
-    this.numero_Objetivo =
-      primer_Numero + segundo_Numero * tercer_Numero - cuarto_Numero;
-
-    return this.numero_Objetivo;
+  public generarNumeros(): void {
+    this.numerosObjetivo = this.strategy.generarNumeros();
   }
 
-  public validar_respuesta(operacion: string): boolean {
-    if (this.is_Terminado()) {
+  public validarOperacion(operacion: string): boolean {
+    if (this.esTerminado()) {
       return false;
     }
 
-    const operacion_Validada = this.extraer_Operacion(operacion);
-    this.intentos_Jugador += 1;
-
-    const resultado_Correcto =
-      operacion_Validada.resultado === this.numero_Objetivo;
-    const numeros_Correctos =
-      operacion_Validada.numeros.length === this.Numeros.length &&
-      operacion_Validada.numeros.every(
-        (numero, indice) => numero === this.Numeros[indice],
-      );
-
-    if (resultado_Correcto && numeros_Correctos) {
-      this.estatus_Juego = "ganado";
-      this.calcular_Puntaje(this.intentos_Maximos - this.intentos_Jugador);
-      return true;
-    }
-
-    if (this.intentos_Jugador >= this.intentos_Maximos) {
-      this.estatus_Juego = "perdido";
-    }
-
-    return false;
-  }
-
-  public validar_Operacion(operacion: string): number {
-    return this.extraer_Operacion(operacion).resultado;
-  }
-
-  public calcular_Puntaje(intentos_Restantes: number): number {
-    if (!Number.isInteger(intentos_Restantes) || intentos_Restantes < 0) {
-      throw new Error("Los intentos restantes deben ser un entero no negativo.");
-    }
-
-    this.puntaje = this.Strategy.calcular_puntaje(intentos_Restantes);
-
-    return this.puntaje;
-  }
-
-  public is_Terminado(): boolean {
-    return (
-      this.estatus_Juego === "ganado" ||
-      this.estatus_Juego === "perdido" ||
-      this.intentos_Jugador >= this.intentos_Maximos
-    );
-  }
-
-  public reiniciar(): void {
-    this.intentos_Jugador = 0;
-    this.puntaje = 0;
-    this.intentos_Maximos = this.Strategy.obtener_intentos_maximos();
-    this.estatus_Juego = "pendiente";
-    this.generar_Numeros();
-    this.generar_Resultado();
-  }
-
-  public get_Numeros(): number[] {
-    return [...this.Numeros];
-  }
-
-  public get_numero_Objetivo(): number {
-    return this.numero_Objetivo;
-  }
-
-  public get_intentos_Jugador(): number {
-    return this.intentos_Jugador;
-  }
-
-  public get_intentos_Maximos(): number {
-    return this.intentos_Maximos;
-  }
-
-  public get_intentos_Restantes(): number {
-    return Math.max(this.intentos_Maximos - this.intentos_Jugador, 0);
-  }
-
-  public get_puntaje(): number {
-    return this.puntaje;
-  }
-
-  public get_estatus_Juego(): string {
-    return this.estatus_Juego;
-  }
-
-  public get_rango_Minimo(): number {
-    return this.Strategy.obtener_rango_minimo();
-  }
-
-  public get_rango_Maximo(): number {
-    return this.Strategy.obtener_rango_maximo();
-  }
-
-  public get_expresion_Juego(): string {
-    return `${this.Numeros[0]}+${this.Numeros[1]}*${this.Numeros[2]}-${this.Numeros[3]}`;
-  }
-
-  private extraer_Operacion(operacion: string): operacion_Extraida {
-    const operacion_Normalizada = operacion
+    const operacionNormalizada = operacion
       .replace(/\s+/g, "")
       .replace(/[xX]/g, "*");
-    const coincidencias = operacion_Normalizada.match(
+    const coincidencias = operacionNormalizada.match(
       /^(\d+)\+(\d+)\*(\d+)-(\d+)$/,
     );
 
@@ -182,26 +49,93 @@ export class modelo_Juego {
       );
     }
 
-    const numeros = coincidencias.slice(1).map((valor) => Number(valor));
-    const rango_Minimo = this.Strategy.obtener_rango_minimo();
-    const rango_Maximo = this.Strategy.obtener_rango_maximo();
+    const numeros = coincidencias.slice(1).map((v) => Number(v));
+    const numsGenerados = this.numerosObjetivo;
 
-    if (
-      numeros.some(
-        (numero) => numero < rango_Minimo || numero > rango_Maximo,
-      )
-    ) {
-      throw new Error(
-        `Los numeros deben estar entre ${rango_Minimo} y ${rango_Maximo}.`,
-      );
+    if (numeros.length !== numsGenerados.length) {
+      throw new Error("La operacion debe contener 4 numeros.");
     }
 
-    if (new Set(numeros).size !== numeros.length) {
-      throw new Error("La operacion no debe repetir numeros.");
+    const sortedJugador = [...numeros].sort((a, b) => a - b);
+    const sortedGenerados = [...numsGenerados].sort((a, b) => a - b);
+    const numerosCorrectos = sortedJugador.every(
+      (n, i) => n === sortedGenerados[i],
+    );
+
+    const resultado =
+      numeros[0] + numeros[1] * numeros[2] - numeros[3];
+    const numeroObjetivo =
+      numsGenerados[0] +
+      numsGenerados[1] * numsGenerados[2] -
+      numsGenerados[3];
+
+    this.intentosJugador += 1;
+
+    if (resultado === numeroObjetivo && numerosCorrectos) {
+      this.estado = "ganado";
+      this.calcularPuntaje();
+      return true;
     }
 
-    const resultado = numeros[0] + numeros[1] * numeros[2] - numeros[3];
+    if (this.intentosJugador >= this.intentosMaximos) {
+      this.estado = "perdido";
+    }
 
-    return { numeros, resultado };
+    return false;
+  }
+
+  public calcularPuntaje(): number {
+    this.puntaje = this.strategy.calcularPuntaje(this.intentosJugador);
+    return this.puntaje;
+  }
+
+  public esTerminado(): boolean {
+    return (
+      this.estado === "ganado" ||
+      this.estado === "perdido" ||
+      this.intentosJugador >= this.intentosMaximos
+    );
+  }
+
+  public finalizarPartida(): void {
+    if (!this.esTerminado()) {
+      this.estado = "finalizado";
+    }
+  }
+
+  public getPuntaje(): number {
+    return this.puntaje;
+  }
+
+  public getJugador(): Jugador {
+    return this.jugador;
+  }
+
+  public getNumerosObjetivo(): number[] {
+    return [...this.numerosObjetivo];
+  }
+
+  public getIntentosMaximos(): number {
+    return this.intentosMaximos;
+  }
+
+  public getIntentosJugador(): number {
+    return this.intentosJugador;
+  }
+
+  public getEstado(): string {
+    return this.estado;
+  }
+
+  public getNumeroObjetivo(): number {
+    if (this.numerosObjetivo.length === 0) return 0;
+    const [a, b, c, d] = this.numerosObjetivo;
+    return a + b * c - d;
+  }
+
+  public getExpresionJuego(): string {
+    if (this.numerosObjetivo.length === 0) return "";
+    const [a, b, c, d] = this.numerosObjetivo;
+    return `${a}+${b}*${c}-${d}`;
   }
 }

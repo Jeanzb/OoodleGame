@@ -1,1 +1,2 @@
-export { factory_Partidas } from "./factory_Partidas";
+export { FactoryPartida } from "./factory_Partidas";
+export type { TipoDificultad } from "./factory_Partidas";

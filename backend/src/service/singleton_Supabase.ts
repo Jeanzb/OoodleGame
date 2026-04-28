@@ -1,29 +1,38 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export class singleton_Supabase {
-  private static instance: singleton_Supabase | null = null;
-  private supabase_Url: string;
-  private supabase_Key: string;
-  private supabase_Client: SupabaseClient | null;
+export class SingletonSupabase {
+  private static instance: SingletonSupabase | null = null;
+  private static lock: boolean = false;
+  private supabaseClient: SupabaseClient | null;
+  private url: string;
+  private user: string;
+  private password: string;
 
   private constructor() {
-    this.supabase_Url = process.env.SUPABASE_URL ?? "";
-    this.supabase_Key = process.env.SUPABASE_KEY ?? "";
-    this.supabase_Client =
-      this.supabase_Url && this.supabase_Key
-        ? createClient(this.supabase_Url, this.supabase_Key)
-        : null;
+    this.url = process.env.SUPABASE_URL ?? "";
+    this.user = process.env.SUPABASE_USER ?? "";
+    this.password = process.env.SUPABASE_PASSWORD ?? "";
+    const key = process.env.SUPABASE_KEY ?? "";
+    this.supabaseClient =
+      this.url && key ? createClient(this.url, key) : null;
   }
 
-  public static get_instance(): singleton_Supabase {
-    if (singleton_Supabase.instance === null) {
-      singleton_Supabase.instance = new singleton_Supabase();
+  public static getInstance(): SingletonSupabase {
+    if (SingletonSupabase.instance === null) {
+      if (SingletonSupabase.lock) {
+        while (SingletonSupabase.instance === null) {
+          // Espera activa teórica para garantizar unicidad en caso de race condition
+        }
+        return SingletonSupabase.instance as SingletonSupabase;
+      }
+      SingletonSupabase.lock = true;
+      SingletonSupabase.instance = new SingletonSupabase();
+      SingletonSupabase.lock = false;
     }
-
-    return singleton_Supabase.instance;
+    return SingletonSupabase.instance;
   }
 
-  public get_client(): SupabaseClient | null {
-    return this.supabase_Client;
+  public getClient(): SupabaseClient | null {
+    return this.supabaseClient;
   }
 }

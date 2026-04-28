@@ -15,10 +15,12 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.0",
     "@supabase/supabase-js": "^2.57.4",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "hono": "^4.12.15"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
