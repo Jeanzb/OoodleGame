@@ -1,19 +1,29 @@
-import type { strategy_Dificultad } from "./strategy_Dificultad";
+import { StrategyDificultad } from "./strategy_Dificultad";
 
-export class dificultad_Normal implements strategy_Dificultad {
-  public calcular_puntaje(intentos: number): number {
-    return 100 + intentos * 50;
+export class DificultadNormal implements StrategyDificultad {
+  public generarNumeros(): number[] {
+    const rangoMinimo = 1;
+    const rangoMaximo = 9;
+    const disponibles = Array.from(
+      { length: rangoMaximo - rangoMinimo + 1 },
+      (_, i) => i + rangoMinimo,
+    );
+
+    for (let i = disponibles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [disponibles[i], disponibles[j]] = [disponibles[j], disponibles[i]];
+    }
+
+    return disponibles.slice(0, 4);
   }
 
-  public obtener_intentos_maximos(): number {
+  public calcularIntentosMaximos(): number {
     return 6;
   }
 
-  public obtener_rango_minimo(): number {
-    return 1;
-  }
-
-  public obtener_rango_maximo(): number {
-    return 9;
+  public calcularPuntaje(intentosJugador: number): number {
+    const intentosMaximos = this.calcularIntentosMaximos();
+    const intentosRestantes = Math.max(intentosMaximos - intentosJugador, 0);
+    return 100 + intentosRestantes * 50;
   }
 }

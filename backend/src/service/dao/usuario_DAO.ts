@@ -1,83 +1,107 @@
-import { randomUUID } from "crypto";
-
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-type usuario_Persistido = {
-  id: string;
-  nombre_jugador: string;
-  created_at: string;
-};
+import { DAO } from "../DAO";
+import { Jugador } from "../../modelo/modelo_Jugador";
+import { SingletonSupabase } from "../singleton_Supabase";
 
 const TABLA_USUARIOS = "usuarios";
-const usuarios_Locales = new Map<string, usuario_Persistido>();
 
-export class usuario_DAO {
-  private supabase_client: SupabaseClient | null;
+export class JugadorDAO implements DAO<Jugador> {
+  private supabaseClient: SupabaseClient | null;
+  private jugadoresLocales: Map<number, Jugador>;
+  private nombreAJugador: Map<string, number>;
 
-  constructor(supabase_client: SupabaseClient | null) {
-    this.supabase_client = supabase_client;
+  constructor() {
+    const singleton = SingletonSupabase.getInstance();
+    this.supabaseClient = singleton.getClient();
+    this.jugadoresLocales = new Map();
+    this.nombreAJugador = new Map();
   }
 
-  public async crear_usuario(nombre: string): Promise<string> {
-    const nombre_Normalizado = nombre.trim();
+  public async create(entidad: Jugador): Promise<boolean> {
+    try {
+      const nombre = entidad.getNombre();
 
-    if (!nombre_Normalizado) {
-      throw new Error("El nombre del jugador no puede estar vacio.");
+      if (this.supabaseClient === null) {
+        this.jugadoresLocales.set(entidad.getIdJugador(), entidad);
+        this.nombreAJugador.set(nombre.toLowerCase(), entidad.getIdJugador());
+        return true;
+      }
+
+      const existente = await this.obtenerPorNombre(nombre);
+      if (existente) {
+        this.jugadoresLocales.set(entidad.getIdJugador(), entidad);
+        return true;
+      }
+
+      const { error } = await this.supabaseClient
+        .from(TABLA_USUARIOS)
+        .insert({ nombre_jugador: nombre });
+
+      if (error) throw error;
+
+      this.jugadoresLocales.set(entidad.getIdJugador(), entidad);
+      this.nombreAJugador.set(nombre.toLowerCase(), entidad.getIdJugador());
+      return true;
+    } catch {
+      return false;
     }
-
-    const usuario_Existente = await this.get_usuario(nombre_Normalizado);
-
-    if (usuario_Existente !== null) {
-      return usuario_Existente.id;
-    }
-
-    if (this.supabase_client === null) {
-      const usuario_Local = {
-        id: randomUUID(),
-        nombre_jugador: nombre_Normalizado,
-        created_at: new Date().toISOString(),
-      };
-
-      usuarios_Locales.set(nombre_Normalizado.toLowerCase(), usuario_Local);
-      return usuario_Local.id;
-    }
-
-    const { data, error } = await this.supabase_client
-      .from(TABLA_USUARIOS)
-      .insert({
-        nombre_jugador: nombre_Normalizado,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      throw new Error(`No se pudo crear el usuario: ${error.message}`);
-    }
-
-    return data.id;
   }
 
-  public async get_usuario(nombre: string): Promise<usuario_Persistido | null> {
-    const nombre_Normalizado = nombre.trim();
+  public async obtener(id: number): Promise<Jugador | null> {
+    if (this.jugadoresLocales.has(id)) {
+      return this.jugadoresLocales.get(id) ?? null;
+    }
+    return null;
+  }
 
-    if (!nombre_Normalizado) {
+  public async obtenerPorNombre(nombre: string): Promise<Jugador | null> {
+    const normalizado = nombre.trim().toLowerCase();
+    if (!normalizado) return null;
+
+    if (this.nombreAJugador.has(normalizado)) {
+      const id = this.nombreAJugador.get(normalizado)!;
+      return this.jugadoresLocales.get(id) ?? null;
+    }
+
+    if (this.supabaseClient === null) {
       return null;
     }
 
-    if (this.supabase_client === null) {
-      return usuarios_Locales.get(nombre_Normalizado.toLowerCase()) ?? null;
-    }
-
-    const { data, error } = await this.supabase_client
+    const { data, error } = await this.supabaseClient
       .from(TABLA_USUARIOS)
       .select("id, nombre_jugador, created_at")
-      .eq("nombre_jugador", nombre_Normalizado)
+      .eq("nombre_jugador", normalizado)
       .maybeSingle();
 
+    if (error || !data) return null;
+
+    const jugador = new Jugador(Date.now(), data.nombre_jugador, 0);
+    this.jugadoresLocales.set(jugador.getIdJugador(), jugador);
+    this.nombreAJugador.set(normalizado, jugador.getIdJugador());
+    return jugador;
+  }
+
+  public async listar(): Promise<Jugador[]> {
+    if (this.supabaseClient === null) {
+      return Array.from(this.jugadoresLocales.values());
+    }
+    const { data, error } = await this.supabaseClient
+      .from(TABLA_USUARIOS)
+      .select("nombre_jugador");
+
     if (error) {
-      throw new Error(`No se pudo consultar el usuario: ${error.message}`);
+      throw new Error(`No se pudieron listar jugadores: ${error.message}`);
     }
 
-    return data ?? null;
+    return (data ?? []).map(
+      (r: any) => new Jugador(0, r.nombre_jugador, 0),
+    );
+  }
+
+  public async actualizarPuntaje(id: number, puntos: number): Promise<boolean> {
+    const jugador = await this.obtener(id);
+    if (!jugador) return false;
+    jugador.sumarPuntaje(puntos);
+    return true;
   }
 }

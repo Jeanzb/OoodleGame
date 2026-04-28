@@ -1,22 +1,26 @@
-import { modelo_Juego } from "../../modelo";
-import {
-  dificultad_Dificil,
-  dificultad_Normal,
-  type strategy_Dificultad,
-} from "../../modelo/strategy";
+import { Partida } from "../../modelo/modelo_Juego";
+import { Jugador } from "../../modelo/modelo_Jugador";
+import { DificultadNormal } from "../../modelo/strategy/dificultad_Normal";
+import { DificultadDificil } from "../../modelo/strategy/dificultad_Dificil";
+import { StrategyDificultad } from "../../modelo/strategy/strategy_Dificultad";
 
-export class factory_Partidas {
-  public static crear_Partida(dificultad: string): modelo_Juego {
-    const estrategia = factory_Partidas.crear_Estrategia(dificultad);
+export type TipoDificultad = "normal" | "dificil";
 
-    return new modelo_Juego(estrategia);
+export class FactoryPartida {
+  public static crearPartida(
+    dificultad: TipoDificultad,
+    jugador: Jugador,
+  ): Partida {
+    const estrategia = FactoryPartida.crearEstrategia(dificultad);
+    const partida = new Partida(jugador, estrategia);
+    partida.iniciarJuego();
+    return partida;
   }
 
-  private static crear_Estrategia(dificultad: string): strategy_Dificultad {
-    if (dificultad.toLowerCase() === "dificil") {
-      return new dificultad_Dificil();
+  private static crearEstrategia(dificultad: TipoDificultad): StrategyDificultad {
+    if (dificultad === "dificil") {
+      return new DificultadDificil();
     }
-
-    return new dificultad_Normal();
+    return new DificultadNormal();
   }
 }

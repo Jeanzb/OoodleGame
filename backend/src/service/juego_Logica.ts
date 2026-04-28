@@ -1,15 +1,14 @@
-import { partida_DAO, usuario_DAO } from "./dao";
-import { factory_Partidas } from "./factory";
-import { modelo_Juego, modelo_Jugador } from "../modelo";
-
-import { singleton_Supabase } from "./singleton_Supabase";
-
-type dificultad_Juego = "normal" | "dificil";
+import { PartidaDAO } from "./dao/partida_DAO";
+import { JugadorDAO } from "./dao/usuario_DAO";
+import { FactoryPartida, type TipoDificultad } from "./factory/factory_Partidas";
+import { Partida } from "../modelo/modelo_Juego";
+import { Jugador } from "../modelo/modelo_Jugador";
+import { SingletonSupabase } from "./singleton_Supabase";
 
 type estado_Publico_Juego = {
   id_Jugador: number;
   nombre_Jugador: string;
-  dificultad: dificultad_Juego;
+  dificultad: TipoDificultad;
   ecuacion_Generada: string;
   numero_Objetivo: number;
   intentos_Jugador: number;
@@ -32,21 +31,20 @@ type respuesta_Validacion = estado_Publico_Juego & {
 };
 
 export class juego_Logica {
-  private modelo_Juego: modelo_Juego | null;
-  private modelo_Jugador: modelo_Jugador | null;
-  private singleton_Supabase: singleton_Supabase;
-  private partida_DAO: partida_DAO;
-  private usuario_DAO: usuario_DAO;
+  private partida: Partida | null;
+  private jugador: Jugador | null;
+  private singletonSupabase: SingletonSupabase;
+  private partidaDAO: PartidaDAO;
+  private jugadorDAO: JugadorDAO;
   private score_Guardado: boolean;
-  private dificultad_Actual: dificultad_Juego;
+  private dificultad_Actual: TipoDificultad;
 
   constructor() {
-    this.modelo_Juego = null;
-    this.modelo_Jugador = null;
-    this.singleton_Supabase = singleton_Supabase.get_instance();
-    const supabase_client = this.singleton_Supabase.get_client();
-    this.partida_DAO = new partida_DAO(supabase_client);
-    this.usuario_DAO = new usuario_DAO(supabase_client);
+    this.partida = null;
+    this.jugador = null;
+    this.singletonSupabase = SingletonSupabase.getInstance();
+    this.partidaDAO = new PartidaDAO();
+    this.jugadorDAO = new JugadorDAO();
     this.score_Guardado = false;
     this.dificultad_Actual = "normal";
   }
@@ -62,29 +60,32 @@ export class juego_Logica {
       throw new Error("Debes enviar un nombre de jugador valido.");
     }
 
-    this.modelo_Jugador = new modelo_Jugador(
-      Date.now(),
-      nombre_Normalizado,
-      0,
-    );
+    this.jugador = new Jugador(Date.now(), nombre_Normalizado, 0);
     this.dificultad_Actual = dificultad_Normalizada;
-    this.modelo_Juego = factory_Partidas.crear_Partida(dificultad_Normalizada);
+    this.partida = FactoryPartida.crearPartida(
+      dificultad_Normalizada,
+      this.jugador,
+    );
     this.score_Guardado = false;
   }
 
   public generar_Round(): void {
     this.obtener_Jugador_Activo();
-    this.modelo_Juego = factory_Partidas.crear_Partida(this.dificultad_Actual);
+    this.partida = FactoryPartida.crearPartida(
+      this.dificultad_Actual,
+      this.jugador!,
+    );
     this.score_Guardado = false;
   }
 
   public validar_Operacion_Jugador(operacion: string): string {
-    const juego_Actual = this.obtener_Juego_Activo();
+    const partida_Actual = this.obtener_Partida_Activa();
     const operacion_Normalizada = this.normalizar_Operacion(operacion);
     const numeros_Jugador = this.extraer_Numeros_Operacion(operacion_Normalizada);
-    const numeros_Secretos = juego_Actual.get_Numeros();
-    const resultado_Operacion = juego_Actual.validar_Operacion(operacion_Normalizada);
-    const es_Correcta = juego_Actual.validar_respuesta(operacion_Normalizada);
+    const numeros_Secretos = partida_Actual.getNumerosObjetivo();
+    const resultado_Operacion =
+      this.calcular_Resultado_Operacion(operacion_Normalizada);
+    const es_Correcta = partida_Actual.validarOperacion(operacion_Normalizada);
 
     if (es_Correcta) {
       this.actualizar_Score();
@@ -101,7 +102,7 @@ export class juego_Logica {
       ),
     };
 
-    if (juego_Actual.is_Terminado()) {
+    if (partida_Actual.esTerminado()) {
       respuesta.solucion = numeros_Secretos;
     }
 
@@ -109,21 +110,20 @@ export class juego_Logica {
   }
 
   public actualizar_Score(): void {
-    const juego_Actual = this.obtener_Juego_Activo();
+    const partida_Actual = this.obtener_Partida_Activa();
     const jugador_Actual = this.obtener_Jugador_Activo();
     const puntaje_Actual =
-      juego_Actual.get_estatus_Juego() === "ganado"
-        ? juego_Actual.get_puntaje()
+      partida_Actual.getEstado() === "ganado"
+        ? partida_Actual.getPuntaje()
         : 0;
-
-    jugador_Actual.set_puntaje_Jugador(puntaje_Actual);
+    jugador_Actual.sumarPuntaje(puntaje_Actual);
   }
 
   public async guardar_Score(): Promise<void> {
-    const juego_Actual = this.obtener_Juego_Activo();
+    const partida_Actual = this.obtener_Partida_Activa();
     const jugador_Actual = this.obtener_Jugador_Activo();
 
-    if (!juego_Actual.is_Terminado()) {
+    if (!partida_Actual.esTerminado()) {
       throw new Error("El juego debe terminar antes de guardar el puntaje.");
     }
 
@@ -133,72 +133,64 @@ export class juego_Logica {
 
     this.actualizar_Score();
 
-    const usuario_id = await this.usuario_DAO.crear_usuario(
-      jugador_Actual.get_nombre_Jugador(),
-    );
-
-    await this.partida_DAO.insertar_partida({
-      usuario_id,
-      nombre_jugador: jugador_Actual.get_nombre_Jugador(),
-      ecuacion_jugada: juego_Actual.get_expresion_Juego(),
-      dificultad: this.dificultad_Actual,
-      estado: this.mapear_Estado_Partida(juego_Actual.get_estatus_Juego()),
-      intentos_usados: juego_Actual.get_intentos_Jugador(),
-      puntaje: jugador_Actual.get_puntaje_Jugador(),
-      finished_at: new Date().toISOString(),
-    });
+    await this.jugadorDAO.create(jugador_Actual);
+    await this.partidaDAO.create(partida_Actual);
 
     this.score_Guardado = true;
   }
 
   public async get_ranking(): Promise<string> {
-    return JSON.stringify(await this.partida_DAO.obtener_ranking());
+    const ranking = await this.partidaDAO.obtenerRankingPartidas();
+    return JSON.stringify(ranking);
   }
 
   public obtener_Estado_Publico(): estado_Publico_Juego {
-    const juego_Actual = this.obtener_Juego_Activo();
+    const partida_Actual = this.obtener_Partida_Activa();
     const jugador_Actual = this.obtener_Jugador_Activo();
+
     const estado_Publico: estado_Publico_Juego = {
-      id_Jugador: jugador_Actual.get_id_Jugador(),
-      nombre_Jugador: jugador_Actual.get_nombre_Jugador(),
+      id_Jugador: jugador_Actual.getIdJugador(),
+      nombre_Jugador: jugador_Actual.getNombre(),
       dificultad: this.dificultad_Actual,
       ecuacion_Generada: "A+B*C-D",
-      numero_Objetivo: juego_Actual.get_numero_Objetivo(),
-      intentos_Jugador: juego_Actual.get_intentos_Jugador(),
-      intentos_Maximos: juego_Actual.get_intentos_Maximos(),
-      intentos_Restantes: juego_Actual.get_intentos_Restantes(),
-      puntaje_Actual: juego_Actual.get_puntaje(),
-      puntaje_Jugador: jugador_Actual.get_puntaje_Jugador(),
-      estatus_Juego: juego_Actual.get_estatus_Juego(),
-      rango_Minimo: juego_Actual.get_rango_Minimo(),
-      rango_Maximo: juego_Actual.get_rango_Maximo(),
-      total_Numeros: juego_Actual.get_Numeros().length,
+      numero_Objetivo: partida_Actual.getNumeroObjetivo(),
+      intentos_Jugador: partida_Actual.getIntentosJugador(),
+      intentos_Maximos: partida_Actual.getIntentosMaximos(),
+      intentos_Restantes: Math.max(
+        partida_Actual.getIntentosMaximos() -
+          partida_Actual.getIntentosJugador(),
+        0,
+      ),
+      puntaje_Actual: partida_Actual.getPuntaje(),
+      puntaje_Jugador: jugador_Actual.getPuntajeTotal(),
+      estatus_Juego: partida_Actual.getEstado(),
+      rango_Minimo: 1,
+      rango_Maximo: this.dificultad_Actual === "dificil" ? 12 : 9,
+      total_Numeros: partida_Actual.getNumerosObjetivo().length,
     };
 
-    if (juego_Actual.is_Terminado()) {
-      estado_Publico.solucion = juego_Actual.get_Numeros();
+    if (partida_Actual.esTerminado()) {
+      estado_Publico.solucion = partida_Actual.getNumerosObjetivo();
     }
 
     return estado_Publico;
   }
 
-  private obtener_Juego_Activo(): modelo_Juego {
-    if (this.modelo_Juego === null) {
+  private obtener_Partida_Activa(): Partida {
+    if (this.partida === null) {
       throw new Error("Primero debes iniciar el juego.");
     }
-
-    return this.modelo_Juego;
+    return this.partida;
   }
 
-  private obtener_Jugador_Activo(): modelo_Jugador {
-    if (this.modelo_Jugador === null) {
+  private obtener_Jugador_Activo(): Jugador {
+    if (this.jugador === null) {
       throw new Error("Primero debes iniciar el juego con un jugador.");
     }
-
-    return this.modelo_Jugador;
+    return this.jugador;
   }
 
-  private normalizar_Dificultad(dificultad: string): dificultad_Juego {
+  private normalizar_Dificultad(dificultad: string): TipoDificultad {
     return dificultad.toLowerCase() === "dificil" ? "dificil" : "normal";
   }
 
@@ -208,14 +200,17 @@ export class juego_Logica {
 
   private extraer_Numeros_Operacion(operacion: string): number[] {
     const coincidencias = operacion.match(/^(\d+)\+(\d+)\*(\d+)-(\d+)$/);
-
     if (!coincidencias) {
       throw new Error(
         "La operacion debe tener el formato numero+numero*numero-numero.",
       );
     }
+    return coincidencias.slice(1).map((v) => Number(v));
+  }
 
-    return coincidencias.slice(1).map((valor) => Number(valor));
+  private calcular_Resultado_Operacion(operacion: string): number {
+    const nums = this.extraer_Numeros_Operacion(operacion);
+    return nums[0] + nums[1] * nums[2] - nums[3];
   }
 
   private construir_Retroalimentacion(
@@ -231,55 +226,25 @@ export class juego_Logica {
       () => false,
     );
 
-    for (let indice = 0; indice < numeros_Jugador.length; indice += 1) {
-      if (numeros_Jugador[indice] === numeros_Secretos[indice]) {
-        retroalimentacion[indice] = "verde";
-        posiciones_Usadas[indice] = true;
+    for (let i = 0; i < numeros_Jugador.length; i++) {
+      if (numeros_Jugador[i] === numeros_Secretos[i]) {
+        retroalimentacion[i] = "verde";
+        posiciones_Usadas[i] = true;
       }
     }
 
-    for (
-      let indice_Jugador = 0;
-      indice_Jugador < numeros_Jugador.length;
-      indice_Jugador += 1
-    ) {
-      if (retroalimentacion[indice_Jugador] === "verde") {
-        continue;
-      }
-
-      for (
-        let indice_Secreto = 0;
-        indice_Secreto < numeros_Secretos.length;
-        indice_Secreto += 1
-      ) {
-        if (posiciones_Usadas[indice_Secreto]) {
-          continue;
-        }
-
-        if (
-          numeros_Jugador[indice_Jugador] === numeros_Secretos[indice_Secreto]
-        ) {
-          retroalimentacion[indice_Jugador] = "amarillo";
-          posiciones_Usadas[indice_Secreto] = true;
+    for (let i = 0; i < numeros_Jugador.length; i++) {
+      if (retroalimentacion[i] === "verde") continue;
+      for (let j = 0; j < numeros_Secretos.length; j++) {
+        if (posiciones_Usadas[j]) continue;
+        if (numeros_Jugador[i] === numeros_Secretos[j]) {
+          retroalimentacion[i] = "amarillo";
+          posiciones_Usadas[j] = true;
           break;
         }
       }
     }
 
     return retroalimentacion;
-  }
-
-  private mapear_Estado_Partida(
-    estatus_Juego: string,
-  ): "victoria" | "derrota" | "abandonada" {
-    if (estatus_Juego === "ganado") {
-      return "victoria";
-    }
-
-    if (estatus_Juego === "perdido") {
-      return "derrota";
-    }
-
-    return "abandonada";
   }
 }

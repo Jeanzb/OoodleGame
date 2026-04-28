@@ -1,6 +1,6 @@
-import type { Request, Response } from "express";
+import { Context } from "hono";
 
-import { juego_Logica } from "../service";
+import { juego_Logica } from "../service/juego_Logica";
 
 export class controlador_Juego {
   private juego_Logica: juego_Logica;
@@ -9,75 +9,77 @@ export class controlador_Juego {
     this.juego_Logica = new juego_Logica();
   }
 
-  public iniciar_Juego = (req: Request, res: Response): void => {
+  public iniciar_Juego = async (c: Context) => {
     try {
-      const nombre_Jugador = String(req.body?.nombre_Jugador ?? "");
-      const dificultad = String(req.body?.dificultad ?? "normal");
+      const body = await c.req.json();
+      const nombre_Jugador = String(body?.nombre_Jugador ?? "");
+      const dificultad = String(body?.dificultad ?? "normal");
 
       this.juego_Logica.iniciar_Juego(nombre_Jugador, dificultad);
 
-      res.status(201).json({
-        mensaje: "Juego iniciado correctamente.",
-        juego: this.juego_Logica.obtener_Estado_Publico(),
-      });
+      return c.json(
+        {
+          mensaje: "Juego iniciado correctamente.",
+          juego: this.juego_Logica.obtener_Estado_Publico(),
+        },
+        201,
+      );
     } catch (error) {
-      this.responder_Error(res, error, 400);
+      return this.responder_Error(c, error, 400);
     }
   };
 
-  public mandar_Numeros = (_req: Request, res: Response): void => {
+  public mandar_Numeros = (c: Context) => {
     try {
-      res.status(200).json(this.juego_Logica.obtener_Estado_Publico());
+      return c.json(this.juego_Logica.obtener_Estado_Publico(), 200);
     } catch (error) {
-      this.responder_Error(res, error, 400);
+      return this.responder_Error(c, error, 400);
     }
   };
 
-  public validar_Operacion = (req: Request, res: Response): void => {
+  public validar_Operacion = async (c: Context) => {
     try {
-      const operacion = String(req.body?.operacion ?? "");
+      const body = await c.req.json();
+      const operacion = String(body?.operacion ?? "");
       const respuesta = JSON.parse(
         this.juego_Logica.validar_Operacion_Jugador(operacion),
       );
 
-      res.status(200).json(respuesta);
+      return c.json(respuesta, 200);
     } catch (error) {
-      this.responder_Error(res, error, 400);
+      return this.responder_Error(c, error, 400);
     }
   };
 
-  public guardar_Score = async (_req: Request, res: Response): Promise<void> => {
+  public guardar_Score = async (c: Context) => {
     try {
       await this.juego_Logica.guardar_Score();
 
-      res.status(200).json({
-        mensaje: "Puntaje guardado correctamente.",
-      });
+      return c.json(
+        {
+          mensaje: "Puntaje guardado correctamente.",
+        },
+        200,
+      );
     } catch (error) {
-      this.responder_Error(res, error, 400);
+      return this.responder_Error(c, error, 400);
     }
   };
 
-  public get_ranking = async (_req: Request, res: Response): Promise<void> => {
+  public get_ranking = async (c: Context) => {
     try {
       const ranking = JSON.parse(await this.juego_Logica.get_ranking());
 
-      res.status(200).json(ranking);
+      return c.json(ranking, 200);
     } catch (error) {
-      this.responder_Error(res, error, 500);
+      return this.responder_Error(c, error, 500);
     }
   };
 
-  public Operation2(): void {}
-
-  private responder_Error(
-    res: Response,
-    error: unknown,
-    status: number,
-  ): void {
+  private responder_Error(c: Context, error: unknown, status: number) {
     const mensaje =
       error instanceof Error ? error.message : "Ocurrio un error inesperado.";
 
-    res.status(status).json({ error: mensaje });
+    return c.json({ error: mensaje }, status as any);
   }
 }

@@ -1,2 +1,2 @@
-export { partida_DAO } from "./partida_DAO";
-export { usuario_DAO } from "./usuario_DAO";
+export { PartidaDAO } from "./partida_DAO";
+export { JugadorDAO } from "./usuario_DAO";
